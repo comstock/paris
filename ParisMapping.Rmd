@@ -1,0 +1,147 @@
+---
+title: "mapping Paris"
+output: html_document
+date: "2026-04-26"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, include=FALSE}
+
+rm(list = ls()) # clear env vars
+
+pkgs.inst <- as.data.frame(installed.packages(noCache = TRUE)) # list of installed R packages
+
+pkgs.load <- c( # default list of packages to load
+   # "DiagrammeR",
+   # "DiagrammeRsvg",
+   # "digest",
+   "dplyr",
+   "DT", # https://rdrr.io/cran/DT/
+   # "esquisse", # GUI ggplot 
+   # "formattable",
+   "ggplot2",
+   # "glue", # join strings neatly
+   "htmlTable",
+   # "janitor", # clean-up messy col names janitor::clean_names()
+   "jsonlite",
+   "lubridate",
+   # "magrittr",
+   "mime",
+   # "officer",
+   "pandoc",
+   # "plan", # for creation of gantt charts
+   "plotly",
+   "RColorBrewer",
+   "RCurl",
+   "readr",
+   "readxl",
+   "xlsx",
+   "rsvg",
+   "Rtools",
+   "scales",
+   "stats",
+   # "tidylog",
+   "tidyr",
+   "tidytext", # pull apart text data, count elements
+   "tidyverse",
+   # "tsibble", # time series data
+   "utf8",
+   # "vroom", # loads data fast
+   # "webshot",
+   "xml2",
+   "leaflet",
+   "xtable"
+)
+#
+idx <- pkgs.load %in% pkgs.inst$Package == FALSE # index of packages that need to be installed
+# pkgs.load[idx]
+if(sum(idx) > 0){install.packages(pkgs.load[idx],dependencies = TRUE,contriburl = "https://stat.ethz.ch/CRAN/")} # if at least one package needs installing, run.
+lapply(pkgs.load, require, character.only = TRUE) # require packages be loaded into current env
+##
+timezone <- "US/Eastern" #Set timezone # set TZ
+if(is.na(Sys.timezone()) == TRUE){
+  Sys.setenv(TZ=timezone)
+}
+##
+os <- .Platform$OS.type
+os <- Sys.info()[[1]][1] #windows linux # identify OS
+#
+options(scipen=999)
+# end
+# <style>th,td{padding:5px 5px 5px 5px;}</style>
+
+# IS_ServiceDetails <- read_excel("../data/IS_ServiceDetails.xlsx", 
+#    col_types = c("date", "text", "text", 
+#        "text", "text", "numeric", "numeric", 
+#        "numeric", "text", "text", "text"))
+
+```
+
+```{r data, include=FALSE}
+
+Paris <- read_excel("Paris.xlsx")
+
+```
+
+```{r latLong, include=FALSE}
+
+Paris["latitude"] <- NA ; Paris["longitude"] <- NA
+
+longitude <- str_extract(Paris$coordinates,"^.*," )
+longitude <- gsub("\\,","",longitude)
+latitude <- str_extract(Paris$coordinates,",.*" )
+latitude <- gsub("\\,","",latitude)
+Paris$longitude <- as.numeric(longitude)
+Paris$latitude <- as.numeric(latitude)
+
+class(Paris$longitude)
+
+```
+
+```{r leaflet, include=FALSE}
+library(leaflet)
+
+# m <- leaflet(data = Paris) %>% 
+#   addProviderTiles(providers$CartoDB.Positron) %>% 
+#   # No need for setView; this will automatically frame your markers
+#   addMarkers(
+#     lat = ~longitude,  # Your 'longitude' column holds 48.x values
+#     lng = ~latitude,   # Your 'latitude' column holds 2.x values
+#     popup = ~as.character(name)
+#   )
+
+# 1. Create a color palette function for your categories
+# You can use manual colors or a palette like "Dark2" or "Set1"
+pal <- colorFactor(
+  palette = c("red", "blue", "green", "purple"), 
+  domain = Paris$category
+)
+
+m <- leaflet(data = Paris) %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>% 
+  # 2. Use addCircleMarkers to enable color coding
+  addCircleMarkers(
+    lat = ~longitude,  # Note: Keeping your swapped columns from the last step
+    lng = ~latitude, 
+    color = ~pal(category),
+    opacity = 1,
+    fillOpacity = 0.8,
+    radius = 8,
+    popup = ~as.character(name)
+  ) %>%
+  # 3. Add a legend to the bottom right
+  addLegend(
+    pal = pal, 
+    values = ~category, 
+    title = "Category",
+    position = "bottomright"
+  )
+
+```
+
+
+`r m`
+
