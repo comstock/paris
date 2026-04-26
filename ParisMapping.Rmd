@@ -8,146 +8,93 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r packages, include=FALSE}
-
-rm(list = ls()) # clear env vars
-
-pkgs.inst <- as.data.frame(installed.packages(noCache = TRUE)) # list of installed R packages
-
-pkgs.load <- c( # default list of packages to load
-   # "DiagrammeR",
-   # "DiagrammeRsvg",
-   # "digest",
-   "dplyr",
-   "DT", # https://rdrr.io/cran/DT/
-   # "esquisse", # GUI ggplot 
-   # "formattable",
-   "ggplot2",
-   # "glue", # join strings neatly
-   "htmlTable",
-   # "janitor", # clean-up messy col names janitor::clean_names()
-   "jsonlite",
-   "lubridate",
-   # "magrittr",
-   "mime",
-   # "officer",
-   "pandoc",
-   # "plan", # for creation of gantt charts
-   "plotly",
-   "RColorBrewer",
-   "RCurl",
-   "readr",
-   "readxl",
-   "xlsx",
-   "rsvg",
-   "Rtools",
-   "scales",
-   "stats",
-   # "tidylog",
-   "tidyr",
-   "tidytext", # pull apart text data, count elements
-   "tidyverse",
-   # "tsibble", # time series data
-   "utf8",
-   # "vroom", # loads data fast
-   # "webshot",
-   "xml2",
-   "leaflet",
-   "xtable"
-)
-#
-idx <- pkgs.load %in% pkgs.inst$Package == FALSE # index of packages that need to be installed
-# pkgs.load[idx]
-if(sum(idx) > 0){install.packages(pkgs.load[idx],dependencies = TRUE,contriburl = "https://stat.ethz.ch/CRAN/")} # if at least one package needs installing, run.
-lapply(pkgs.load, require, character.only = TRUE) # require packages be loaded into current env
-##
-timezone <- "US/Eastern" #Set timezone # set TZ
-if(is.na(Sys.timezone()) == TRUE){
-  Sys.setenv(TZ=timezone)
-}
-##
-os <- .Platform$OS.type
-os <- Sys.info()[[1]][1] #windows linux # identify OS
-#
-options(scipen=999)
-# end
-# <style>th,td{padding:5px 5px 5px 5px;}</style>
-
-# IS_ServiceDetails <- read_excel("../data/IS_ServiceDetails.xlsx", 
-#    col_types = c("date", "text", "text", 
-#        "text", "text", "numeric", "numeric", 
-#        "numeric", "text", "text", "text"))
-
+rm(list = ls()) 
+pkgs.load <- c("dplyr", "readxl", "leaflet", "stringr", "tidyr", "tidyverse", "RColorBrewer")
+lapply(pkgs.load, require, character.only = TRUE)
 ```
 
 ```{r data, include=FALSE}
-
 Paris <- read_excel("Paris.xlsx")
-
 ```
 
-```{r latLong, include=FALSE}
+```{r processing, include=FALSE}
+# Coordinate Extraction
+Paris$lng_val <- as.numeric(gsub(",", "", str_extract(Paris$coordinates, ",.*")))
+Paris$lat_val <- as.numeric(gsub(",", "", str_extract(Paris$coordinates, "^.*,")))
 
-Paris["latitude"] <- NA ; Paris["longitude"] <- NA
+# Caption Cleaning
+Paris <- Paris %>%
+  mutate(
+    caption = paste(replace_na(name, ""), replace_na(note, ""), replace_na(initials, ""), sep = " | "),
+    caption = str_replace_all(caption, "NA", ""),
+    caption = str_replace_all(caption, " \\|  \\| ", " | "),
+    caption = str_trim(str_replace(caption, "^\\| | \\|$", ""))
+  ) %>%
+  filter(!is.na(lat_val), !is.na(lng_val))
 
-longitude <- str_extract(Paris$coordinates,"^.*," )
-longitude <- gsub("\\,","",longitude)
-latitude <- str_extract(Paris$coordinates,",.*" )
-latitude <- gsub("\\,","",latitude)
-Paris$longitude <- as.numeric(longitude)
-Paris$latitude <- as.numeric(latitude)
-
-class(Paris$longitude)
-
+categories <- sort(unique(Paris$category))
 ```
 
-```{r leaflet, include=FALSE}
-library(leaflet)
+```{r leaflet_map, echo=FALSE, out.width = "100%", out.height = "800px"}
+# 1. Expanded Palette
+color_count <- length(categories)
+get_palette <- colorRampPalette(brewer.pal(9, "Set1"))
+custom_pal <- colorFactor(palette = get_palette(color_count), domain = categories)
 
-# m <- leaflet(data = Paris) %>% 
-#   addProviderTiles(providers$CartoDB.Positron) %>% 
-#   # No need for setView; this will automatically frame your markers
-#   addMarkers(
-#     lat = ~longitude,  # Your 'longitude' column holds 48.x values
-#     lng = ~latitude,   # Your 'latitude' column holds 2.x values
-#     popup = ~as.character(name)
-#   )
+# 2. Build Base Map
+m <- leaflet(data = Paris) %>%
+  addProviderTiles(providers$OpenStreetMap)
 
-# 1. Create a color palette function for your categories
-# You can use manual colors or a palette like "Dark2" or "Set1"
-pal <- colorFactor(
-  palette = c("red", "blue", "green", "purple", "cyan", "magenta", "yellow", "violet"), 
-  domain = Paris$category
-)
-
-m <- leaflet(data = Paris) %>% 
-  addProviderTiles(providers$CartoDB.Positron) %>% 
-  # 2. Use addCircleMarkers to enable color coding
-  addCircleMarkers(
-    lat = ~longitude,  # Note: Keeping your swapped columns from the last step
-    lng = ~latitude, 
-    color = ~pal(category),
+# 3. Add Loop for Groups
+for(cat in categories) {
+  df_sub <- Paris %>% filter(category == cat)
+  m <- m %>% addCircleMarkers(
+    data = df_sub,
+    lat = ~lat_val,
+    lng = ~lng_val,
+    color = ~custom_pal(category),
     opacity = 1,
     fillOpacity = 0.8,
     radius = 8,
-    popup = ~as.character(name)
+    popup = ~caption,
+    group = cat 
+  )
+}
+
+# 4. Separate the Controls to prevent overlap
+m <- m %>%
+  addLayersControl(
+    overlayGroups = categories,
+    # 'collapsed = TRUE' makes it a small icon until clicked
+    options = layersControlOptions(collapsed = TRUE), 
+    position = "topright" 
   ) %>%
-  # 3. Add a legend to the bottom right
   addLegend(
-    pal = pal, 
-    values = ~category, 
-    title = "Category",
-    position = "bottomright"
+    pal = custom_pal, 
+    values = categories, 
+    title = "Category", 
+    position = "bottomleft" # Moved to bottomleft to stay clear of the toggle
   )
 
+m
 ```
 
+### Changes made:
+*   **Legend Position**: Moved to `bottomleft`. 
+*   **Toggle Position**: Kept at `topright`.
+*   **Collapsed Menu**: Changed `collapsed = TRUE`. This replaces the long list of checkboxes with a single "layers" icon that expands when you hover over it, which is much cleaner for maps with many categories.
 
-`r m`
+Does this **cleared-up layout** work better on your screen?
 
-```{r tail, include = FALSE}
+```{r tail, include=FALSE}
 
 lastRevised <- timestamp(prefix = "last revised: ", suffix = "")
+file.copy("ParisMapping.html","index.html",overwrite = TRUE)
 
 ```
 
+<center>
+<small>`r lastRevised`</small>
+</center>
+<br />
 
