@@ -1,5 +1,5 @@
 ---
-title: "Paris Palooza"
+title: "À Paris"
 output: html_document
 ---
 
