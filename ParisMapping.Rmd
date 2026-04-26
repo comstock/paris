@@ -35,7 +35,7 @@ Paris <- Paris %>%
 categories <- sort(unique(Paris$category))
 ```
 
-```{r leaflet_map, echo=FALSE, out.width = "100%", out.height = "700px"}
+```{r leaflet_map, echo=FALSE, out.width = "700px", out.height = "800px"}
 # 1. Expanded Palette
 color_count <- length(categories)
 get_palette <- colorRampPalette(brewer.pal(9, "Set1"))
