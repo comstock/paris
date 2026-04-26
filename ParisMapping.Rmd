@@ -35,7 +35,7 @@ Paris <- Paris %>%
 categories <- sort(unique(Paris$category))
 ```
 
-```{r leaflet_map, echo=FALSE, out.width = "100%", out.height = "800px"}
+```{r leaflet_map, echo=FALSE, out.width = "100%", out.height = "700px"}
 # 1. Expanded Palette
 color_count <- length(categories)
 get_palette <- colorRampPalette(brewer.pal(9, "Set1"))
@@ -79,12 +79,6 @@ m <- m %>%
 m
 ```
 
-### Changes made:
-*   **Legend Position**: Moved to `bottomleft`. 
-*   **Toggle Position**: Kept at `topright`.
-*   **Collapsed Menu**: Changed `collapsed = TRUE`. This replaces the long list of checkboxes with a single "layers" icon that expands when you hover over it, which is much cleaner for maps with many categories.
-
-Does this **cleared-up layout** work better on your screen?
 
 ```{r tail, include=FALSE}
 
