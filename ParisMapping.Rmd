@@ -73,7 +73,7 @@ m <- m %>%
     pal = custom_pal, 
     values = categories, 
     title = "Category", 
-    position = "bottomleft" # Moved to bottomleft to stay clear of the toggle
+    position = "topleft" # Moved to bottomleft to stay clear of the toggle
   )
 
 m
