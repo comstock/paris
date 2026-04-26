@@ -1,7 +1,6 @@
 ---
-title: "mapping Paris"
+title: "Paris Palooza"
 output: html_document
-date: "2026-04-26"
 ---
 
 ```{r setup, include=FALSE}
@@ -116,7 +115,7 @@ library(leaflet)
 # 1. Create a color palette function for your categories
 # You can use manual colors or a palette like "Dark2" or "Set1"
 pal <- colorFactor(
-  palette = c("red", "blue", "green", "purple"), 
+  palette = c("red", "blue", "green", "purple", "cyan", "magenta", "yellow", "violet"), 
   domain = Paris$category
 )
 
@@ -144,4 +143,11 @@ m <- leaflet(data = Paris) %>%
 
 
 `r m`
+
+```{r tail, include = FALSE}
+
+lastRevised <- timestamp(prefix = "last revised: ", suffix = "")
+
+```
+
 
