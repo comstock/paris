@@ -87,6 +87,8 @@ file.copy("ParisMapping.html","index.html",overwrite = TRUE)
 
 ```
 
+#### [table](https://docs.google.com/spreadsheets/d/19gca20FhrzAOb0yWiW4HrpgDrocyjNMHiQfXzB3Mqco/edit?usp=sharing)
+
 <center>
 <small>`r lastRevised`</small>
 </center>
