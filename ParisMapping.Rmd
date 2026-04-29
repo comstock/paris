@@ -1,6 +1,9 @@
 ---
 title: "À Paris"
-output: html_document
+output:
+  html_document:
+  includes:
+    in_header: header.html
 ---
 
 ```{r setup, include=FALSE}
@@ -9,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r packages, include=FALSE}
 rm(list = ls()) 
-pkgs.load <- c("dplyr", "readxl", "leaflet", "stringr", "tidyr", "tidyverse", "RColorBrewer")
+pkgs.load <- c("dplyr", "readxl", "leaflet", "stringr", "tidyr", "tidyverse", "RColorBrewer", "DT")
 lapply(pkgs.load, require, character.only = TRUE)
 ```
 
@@ -34,6 +37,15 @@ Paris <- Paris %>%
 
 categories <- sort(unique(Paris$category))
 ```
+
+```{r rowRemoval, include=FALSE}
+
+idx <- Paris$name %in% "Chartres Cathedral" ; sum(idx) # Remove from table
+Paris <- Paris[!idx,]
+
+
+```
+
 
 ```{r leaflet_map, echo=FALSE, out.width = "700px", out.height = "800px"}
 # 1. Expanded Palette
@@ -79,6 +91,31 @@ m <- m %>%
 m
 ```
 
+```{r table, include=FALSE}
+
+library(DT)
+
+names(Paris)
+
+tbl.paris <- Paris %>%
+  select(name, note, category)
+
+tbl.paris <-
+  datatable(
+    data = tbl.paris,
+    options = list(paging = FALSE,scrollY = FALSE, dom = "t"),
+    colnames = names(tbl.paris),
+    rownames = TRUE,
+    escape = TRUE,
+    style = "auto",
+    fillContainer = TRUE
+    # selection = "disable"
+    # autoHideNavigation = TRUE
+  )
+ 
+```
+
+`r tbl.paris`
 
 ```{r tail, include=FALSE}
 
@@ -86,8 +123,6 @@ lastRevised <- timestamp(prefix = "last revised: ", suffix = "")
 file.copy("ParisMapping.html","index.html",overwrite = TRUE)
 
 ```
-
-#### [table](https://docs.google.com/spreadsheets/d/19gca20FhrzAOb0yWiW4HrpgDrocyjNMHiQfXzB3Mqco/edit?usp=sharing)
 
 <center>
 <small>`r lastRevised`</small>
