@@ -43,7 +43,6 @@ categories <- sort(unique(Paris$category))
 idx <- Paris$name %in% "Chartres Cathedral" ; sum(idx) # Remove from table
 Paris <- Paris[!idx,]
 
-
 ```
 
 
