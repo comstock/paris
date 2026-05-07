@@ -1,9 +1,6 @@
 ---
 title: "À Paris"
-output:
-  html_document:
-  includes:
-    in_header: header.html
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -11,120 +8,101 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r packages, include=FALSE}
-rm(list = ls()) 
-pkgs.load <- c("dplyr", "readxl", "leaflet", "stringr", "tidyr", "tidyverse", "RColorBrewer", "DT")
+rm(list = ls())
+pkgs.load <- c("dplyr", "leaflet", "stringr", "tidyr", "tidyverse", "RColorBrewer", "DT", "openxlsx2")
 lapply(pkgs.load, require, character.only = TRUE)
 ```
 
 ```{r data, include=FALSE}
-Paris <- read_excel("Paris.xlsx")
+# 1. Load the workbook object
+wb <- wb_load("Paris.xlsx")
+
+# 2. Extract Data: One for text, one for raw hyperlinks
+df_text  <- wb_to_df(wb, show_hyperlinks = FALSE)
+df_links <- wb_to_df(wb, show_hyperlinks = TRUE)
+
+# 3. Clean headers and keep ONLY core columns to avoid "NA" or duplicate column errors
+# Use lowercase to match the rest of your script
+colnames(df_text)  <- tolower(make.names(colnames(df_text), unique = TRUE))
+colnames(df_links) <- tolower(make.names(colnames(df_links), unique = TRUE))
+
+# Select only what is needed (adjust names if your Excel headers differ)
+Paris <- df_text %>% select(name, note, category, coordinates)
+urls  <- df_links$name  # Targets from the 'name' column
+
+# 4. Map Hyperlinks to the Name Column
+Paris$name <- mapply(function(txt, link) {
+  if (!is.na(link) && link != txt) {
+    # target='_blank' ensures links open in a new tab
+    return(paste0("<a href='", link, "' target='_blank'>", txt, "</a>"))
+  } else {
+    return(txt)
+  }
+}, Paris$name, urls)
 ```
 
 ```{r processing, include=FALSE}
-# Coordinate Extraction
-Paris$lng_val <- as.numeric(gsub(",", "", str_extract(Paris$coordinates, ",.*")))
-Paris$lat_val <- as.numeric(gsub(",", "", str_extract(Paris$coordinates, "^.*,")))
-
-# Caption Cleaning
+# Coordinate Extraction and Cleaning
 Paris <- Paris %>%
   mutate(
-    caption = paste(replace_na(name, ""), replace_na(note, ""), replace_na(initials, ""), sep = " | "),
-    caption = str_replace_all(caption, "NA", ""),
-    caption = str_replace_all(caption, " \\|  \\| ", " | "),
-    caption = str_trim(str_replace(caption, "^\\| | \\|$", ""))
+    lng_val = as.numeric(gsub(",", "", str_extract(coordinates, ",.*"))),
+    lat_val = as.numeric(gsub(",", "", str_extract(coordinates, "^.*,")))
   ) %>%
+  mutate(
+    # Create the caption using the new linked name
+    caption = paste(replace_na(name, ""), replace_na(note, ""), sep = " | "),
+    caption = str_replace_all(caption, "NA", ""),
+    caption = str_trim(str_replace(caption, "^\\| | \\|$", ""))
+  ) %>% 
   filter(!is.na(lat_val), !is.na(lng_val))
 
 categories <- sort(unique(Paris$category))
+
+# Row Removal example
+Paris <- Paris %>% filter(name != "Chartres Cathedral")
 ```
 
-```{r rowRemoval, include=FALSE}
-
-idx <- Paris$name %in% "Chartres Cathedral" ; sum(idx) # Remove from table
-Paris <- Paris[!idx,]
-
-```
-
-
-```{r leaflet_map, echo=FALSE, out.width = "700px", out.height = "800px"}
-# 1. Expanded Palette
+```{r leaflet_map, echo=FALSE, out.width = "100%", out.height = "600px"}
+# Expanded Palette
 color_count <- length(categories)
 get_palette <- colorRampPalette(brewer.pal(9, "Set1"))
-custom_pal <- colorFactor(palette = get_palette(color_count), domain = categories)
+custom_pal  <- colorFactor(palette = get_palette(color_count), domain = categories)
 
-# 2. Build Base Map
+# Build Map
 m <- leaflet(data = Paris) %>%
-  addProviderTiles(providers$OpenStreetMap)
+  addProviderTiles(providers$OpenStreetMap) %>%
+  addLayersControl(
+    overlayGroups = categories,
+    options = layersControlOptions(collapsed = TRUE),
+    position = "topright"
+  ) %>%
+  addLegend(
+    pal = custom_pal, values = categories, 
+    title = "Category", position = "topleft"
+  )
 
-# 3. Add Loop for Groups
+# Add Markers via Loop
 for(cat in categories) {
   df_sub <- Paris %>% filter(category == cat)
   m <- m %>% addCircleMarkers(
-    data = df_sub,
-    lat = ~lat_val,
-    lng = ~lng_val,
-    color = ~custom_pal(category),
-    opacity = 1,
-    fillOpacity = 0.8,
-    radius = 8,
-    popup = ~caption,
-    group = cat 
+    data = df_sub, lat = ~lat_val, lng = ~lng_val,
+    color = ~custom_pal(category), opacity = 1, fillOpacity = 0.8,
+    radius = 8, popup = ~caption, group = cat
   )
 }
-
-# 4. Separate the Controls to prevent overlap
-m <- m %>%
-  addLayersControl(
-    overlayGroups = categories,
-    # 'collapsed = TRUE' makes it a small icon until clicked
-    options = layersControlOptions(collapsed = TRUE), 
-    position = "topright" 
-  ) %>%
-  addLegend(
-    pal = custom_pal, 
-    values = categories, 
-    title = "Category", 
-    position = "topleft" # Moved to bottomleft to stay clear of the toggle
-  )
-
 m
 ```
 
-```{r table, include=FALSE}
+```{r table, echo=FALSE}
+# Display the searchable table
+datatable(
+  Paris %>% select(name, note, category),
+  escape = FALSE, # MANDATORY to render the <a> links
+  options = list(paging = FALSE, scrollY = "400px", dom = "ft"),
+  rownames = FALSE,
+  colnames = c("Location", "Note", "Category")
+)
 
-library(DT)
-
-names(Paris)
-
-tbl.paris <- Paris %>%
-  select(name, note, category)
-
-tbl.paris <-
-  datatable(
-    data = tbl.paris,
-    options = list(paging = FALSE,scrollY = FALSE, dom = "t"),
-    colnames = names(tbl.paris),
-    rownames = TRUE,
-    escape = TRUE,
-    style = "auto",
-    fillContainer = TRUE
-    # selection = "disable"
-    # autoHideNavigation = TRUE
-  )
- 
+write_csv(x = Paris, file = "Paris_out.csv")
+openxlsx2::write_xlsx(x = Paris,file = "Paris_out.xlsx")
 ```
-
-`r tbl.paris`
-
-```{r tail, include=FALSE}
-
-lastRevised <- timestamp(prefix = "last revised: ", suffix = "")
-file.copy("ParisMapping.html","index.html",overwrite = TRUE)
-
-```
-
-<center>
-<small>`r lastRevised`</small>
-</center>
-<br />
-
