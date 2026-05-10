@@ -20,6 +20,9 @@ wb <- wb_load("Paris.xlsx")
 # 2. Extract Data: One for text, one for raw hyperlinks
 df_text  <- wb_to_df(wb, show_hyperlinks = FALSE)
 df_links <- wb_to_df(wb, show_hyperlinks = TRUE)
+##### DEBUG #####
+# debug.df <- wb_to_df(wb,show_hyperlinks = TRUE)
+# test.df <- Paris <- read_excel("~/Downloads/Paris.xlsx")
 
 # 3. Clean headers and keep ONLY core columns to avoid "NA" or duplicate column errors
 # Use lowercase to match the rest of your script
