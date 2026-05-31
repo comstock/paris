@@ -30,7 +30,7 @@ colnames(df_text)  <- tolower(make.names(colnames(df_text), unique = TRUE))
 colnames(df_links) <- tolower(make.names(colnames(df_links), unique = TRUE))
 
 # Select only what is needed (adjust names if your Excel headers differ)
-Paris <- df_text %>% select(name, note, category, coordinates)
+Paris <- df_text %>% select(name, note, category, coordinates,visited)
 urls  <- df_links$name  # Targets from the 'name' column
 
 # 4. Map Hyperlinks to the Name Column
@@ -63,6 +63,12 @@ categories <- sort(unique(Paris$category))
 
 # Row Removal example
 Paris <- Paris %>% filter(name != "Chartres Cathedral")
+
+
+########### VISITED ###########
+
+Visited <- Paris %>% filter(visited == TRUE)
+
 ```
 
 ```{r leaflet_map, echo=FALSE, out.width = "100%", out.height = "600px"}
@@ -106,6 +112,11 @@ datatable(
   colnames = c("Location", "Note", "Category")
 )
 
-write_csv(x = Paris, file = "Paris_out.csv")
-openxlsx2::write_xlsx(x = Paris,file = "Paris_out.xlsx")
+write_csv(x = Paris, file = "Paris_targets_out.csv")
+openxlsx2::write_xlsx(x = Paris,file = "Paris_targets_out.xlsx")
+
+write_csv(x = Visited, file = "Paris_visited_out.csv")
+openxlsx2::write_xlsx(x = Visited,file = "Paris_visited_out.xlsx")
+
+
 ```
